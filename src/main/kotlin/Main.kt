@@ -21,14 +21,12 @@ fun main() {
      }
      println("First octets found in ${time.inWholeMinutes} minutes. size ${firstOctets.size}")
 
-     runBlocking {
-          val measureTime = measureTime {
-               val count = firstOctets.map {  countAsync(it) }.awaitAll().sum()
-               println("Amount of unique addresses is $count")
-               println("Errors occurred $errorCounter ")
-          }
-          println("${LocalDateTime.now()} Found in ${measureTime.inWholeMinutes} minutes")
+     val measureTime = measureTime {
+          val count = runBlocking { firstOctets.map {  countAsync(it) }.awaitAll().sum() }
+          println("Amount of unique addresses is $count")
+          println("Errors occurred $errorCounter ")
      }
+     println("${LocalDateTime.now()} Found in ${measureTime.inWholeMinutes} minutes")
 }
 
 private fun CoroutineScope.countAsync(item: Map.Entry<String, Int>): Deferred<Int> =
