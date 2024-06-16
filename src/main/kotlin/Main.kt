@@ -1,4 +1,6 @@
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
@@ -10,31 +12,31 @@ import kotlin.time.measureTime
 const val file = "C:\\Users\\lifte\\Downloads\\ip_addresses\\ip_addresses"
 val errorCounter = AtomicInteger(0)
 val dispatcher = Executors.newFixedThreadPool(12).asCoroutineDispatcher()
+//val channel = Channel<String>(12)
 
 fun main() {
      println("${LocalDateTime.now()} started")
-
-     var firstOctets: ConcurrentHashMap<String, Int>
+     var firstOctets: Set<String>
      val time = measureTime {
           firstOctets = getFirstOctets()
      }
      println("First octets found in ${time.inWholeMinutes}. size ${firstOctets.size}")
 
      val measureTime = measureTime {
-          val count = runBlocking { firstOctets.map {  countAsync(it) }.awaitAll().sum() }
+          val count = runBlocking { firstOctets.map { countAsync(it) }.awaitAll().sum() }
           println("Amount of unique addresses is $count")
           println("Errors occurred $errorCounter ")
      }
      println("${LocalDateTime.now()} Found in ${measureTime.inWholeMinutes}")
 }
 
-private fun CoroutineScope.countAsync(item: Map.Entry<String, Int>): Deferred<Int> =
+private fun CoroutineScope.countAsync(item: String): Deferred<Int> =
      async(dispatcher) {
           try {
-               return@async countAddresses(item.key)
+               return@async countAddresses(item)
           } catch (e: Exception) {
                println("Exception occurred $e")
-               return@async retry { countAddresses(item.key) }
+               return@async retry { countAddresses(item) }
           }
      }
 
@@ -57,13 +59,13 @@ private fun countAddresses( octet: String): Int {
      return value
 }
 
-private fun getFirstOctets(): ConcurrentHashMap<String, Int> {
+private fun getFirstOctets(): Set<String> {
      val stream = Files.lines(Path.of(file))
-     val firstOctets = ConcurrentHashMap<String, Int>()
+     val firstOctets = ConcurrentHashMap.newKeySet<String>()
      stream.use {
-          it.parallel().forEach { x ->
+          it.sequential().forEach { x ->
                val firstOctetOfIp = x.split(".").get(0)
-               firstOctets.put("$firstOctetOfIp.", 0)
+               firstOctets.add("$firstOctetOfIp.")
           }
      }
      return firstOctets
