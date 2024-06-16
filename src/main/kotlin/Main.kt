@@ -1,7 +1,6 @@
 import kotlinx.coroutines.*
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.Instant
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -10,7 +9,7 @@ import kotlin.time.measureTime
 
 const val file = "C:\\Users\\lifte\\Downloads\\ip_addresses\\ip_addresses"
 val errorCounter = AtomicInteger(0)
-val dispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+val dispatcher = Executors.newFixedThreadPool(12).asCoroutineDispatcher()
 
 fun main() {
      println("${LocalDateTime.now()} started")
@@ -19,14 +18,14 @@ fun main() {
      val time = measureTime {
           firstOctets = getFirstOctets()
      }
-     println("First octets found in ${time.inWholeMinutes} minutes. size ${firstOctets.size}")
+     println("First octets found in ${time.inWholeMinutes}. size ${firstOctets.size}")
 
      val measureTime = measureTime {
           val count = runBlocking { firstOctets.map {  countAsync(it) }.awaitAll().sum() }
           println("Amount of unique addresses is $count")
           println("Errors occurred $errorCounter ")
      }
-     println("${LocalDateTime.now()} Found in ${measureTime.inWholeMinutes} minutes")
+     println("${LocalDateTime.now()} Found in ${measureTime.inWholeMinutes}")
 }
 
 private fun CoroutineScope.countAsync(item: Map.Entry<String, Int>): Deferred<Int> =
@@ -54,7 +53,7 @@ private fun countAddresses( octet: String): Int {
           }
           value = hashSet.count()
      }
-     println("Count of octet $octet is $value. Spent $measureTime minutes")
+     println("Octet $octet has $value ip-addresses. Spent $measureTime")
      return value
 }
 
