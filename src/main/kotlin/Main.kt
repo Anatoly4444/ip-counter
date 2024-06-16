@@ -25,10 +25,10 @@ fun main() = runBlocking {
           val count = firstOctets.map { item ->
                async(dispatcher) {
                     try {
-                         countAddresses(item.key)
+                         return@async countAddresses(item.key)
                     } catch (e: Exception) {
                          println("Exception occurred $e")
-                         retry { countAddresses(item.key) }
+                         return@async retry { countAddresses(item.key) }
                     }
                }
           }.awaitAll()
