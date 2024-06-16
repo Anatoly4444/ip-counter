@@ -1,48 +1,46 @@
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.measureTime
 
 const val file = "C:\\Users\\lifte\\Downloads\\ip_addresses\\ip_addresses"
-val firstOctets = ConcurrentHashMap<String, Int>()
+val errorCounter = AtomicInteger(0)
+val dispatcher = Executors.newFixedThreadPool(12).asCoroutineDispatcher()
 
 fun main() = runBlocking {
      println("${LocalDateTime.now()} started")
-     val start = Instant.now().epochSecond
 
-//     putFirstOctetsMap()
-          ConcurrentHashMap<String, Int>()
-     firstOctets.put("1.", 0)
-     firstOctets.put("0.", 0)
-//     firstOctets.put("0.", 0)
-
-     println("${LocalDateTime.now()} Size of firstOctets ${firstOctets.size}")
-     val iterator = firstOctets.keys().asIterator()
-     while(iterator.hasNext()) {
-          val job1 = launch(Dispatchers.IO) {
-               countAddresses(iterator.next())
-          }
-          val job2 = launch(Dispatchers.IO) {
-               countAddresses(iterator.next())
-          }
-          job1.join()
-          job2.join()
+     var firstOctets: ConcurrentHashMap<String, Int>
+     val time = measureTime {
+          firstOctets = getFirstOctets()
      }
-     val allUniqueAddresses = firstOctets.values.sum()
+     println("First octets found in ${time.inWholeMinutes} minutes. size ${firstOctets.size}")
 
-     val end = Instant.now().epochSecond
-     val time = (end - start) / 60
-     println("Size of unique ips: $allUniqueAddresses  lines. Minutes spent: $time")
-
+     val measureTime = measureTime {
+          val count = firstOctets.map { item ->
+               async(dispatcher) {
+                    try {
+                         countAddresses(item.key)
+                    } catch (e: Exception) {
+                         println("Exception occurred $e")
+                         retry { countAddresses(item.key) }
+                    }
+               }
+          }.awaitAll()
+               .sum()
+          println("Amount of unique addresses is $count")
+          println("Errors occurred $errorCounter ")
+     }
+     println("${LocalDateTime.now()} Found in ${measureTime.inWholeMinutes} minutes")
 }
 
-private fun countAddresses(octet: String) {
+private fun countAddresses( octet: String): Int {
+     println("Octet $octet processing started")
      val start = Instant.now().epochSecond
 
      val hashSet = HashSet<String>(4_000_000)
@@ -55,19 +53,35 @@ private fun countAddresses(octet: String) {
           }
      }
      val value = hashSet.count()
-     firstOctets.put(octet, value)
 
-     println("Count of ip with first octet $octet is $value")
      val end = Instant.now().epochSecond
-     println("Time spent on cycle ${(end - start) / 60}")
+     println("Count of ip with first octet $octet is $value. Spent  ${(end - start) / 60} minutes on cycle")
+     return value
 }
 
-private fun putFirstOctetsMap() {
+private fun getFirstOctets(): ConcurrentHashMap<String, Int> {
      val stream = Files.lines(Path.of(file))
+     val firstOctets = ConcurrentHashMap<String, Int>()
      stream.use {
           it.parallel().forEach { x ->
                val firstOctetOfIp = x.split(".").get(0)
                firstOctets.put("$firstOctetOfIp.", 0)
           }
      }
+     return firstOctets
+}
+
+fun retry(
+     times: Int = 3,
+     x: () -> Int
+): Int {
+     repeat(times) {
+          try {
+               return x()
+          } catch (e: Exception) {
+               println("Exception occurred: $e")
+          }
+     }
+     errorCounter.incrementAndGet()
+     return 0
 }
