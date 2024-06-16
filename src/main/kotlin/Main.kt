@@ -1,6 +1,4 @@
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.receiveAsFlow
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
@@ -12,7 +10,6 @@ import kotlin.time.measureTime
 const val file = "C:\\Users\\lifte\\Downloads\\ip_addresses\\ip_addresses"
 val errorCounter = AtomicInteger(0)
 val dispatcher = Executors.newFixedThreadPool(12).asCoroutineDispatcher()
-//val channel = Channel<String>(12)
 
 fun main() {
      println("${LocalDateTime.now()} started")
@@ -63,7 +60,7 @@ private fun getFirstOctets(): Set<String> {
      val stream = Files.lines(Path.of(file))
      val firstOctets = ConcurrentHashMap.newKeySet<String>()
      stream.use {
-          it.sequential().forEach { x ->
+          it.parallel().forEach { x ->
                val firstOctetOfIp = x.split(".").get(0)
                firstOctets.add("$firstOctetOfIp.")
           }
