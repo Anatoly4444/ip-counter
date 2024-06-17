@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.system.exitProcess
 import kotlin.time.measureTime
 
 const val file = "C:\\Users\\lifte\\Downloads\\ip_addresses\\ip_addresses"
@@ -25,6 +26,7 @@ fun main() {
           println("Errors occurred $errorCounter ")
      }
      println("${LocalDateTime.now()} Found in ${measureTime.inWholeMinutes}")
+     exitProcess(1)
 }
 
 private fun CoroutineScope.countAsync(item: String): Deferred<Int> =
@@ -41,16 +43,16 @@ private fun countAddresses( octet: String): Int {
      println("Octet $octet processing started")
      var value: Int
      val measureTime = measureTime {
-          val hashSet = HashSet<String>(4_000_000)
+          val hashSet = HashSet<String>(4_000_000, 0.25f)
           val stream = Files.lines(Path.of(file))
-          stream.use {
-               it.sequential().forEach { x ->
-                    if (x.startsWith(octet)) {
-                         hashSet.add(x)
-                    }
+          stream.forEach { x ->
+               if (x.startsWith(octet)) {
+                    hashSet.add(x)
                }
           }
+          stream.close()
           value = hashSet.count()
+
      }
      println("Octet $octet has $value ip-addresses. Spent $measureTime")
      return value
@@ -59,12 +61,11 @@ private fun countAddresses( octet: String): Int {
 private fun getFirstOctets(): Set<String> {
      val stream = Files.lines(Path.of(file))
      val firstOctets = ConcurrentHashMap.newKeySet<String>()
-     stream.use {
-          it.parallel().forEach { x ->
-               val firstOctetOfIp = x.split(".").get(0)
-               firstOctets.add("$firstOctetOfIp.")
-          }
+     stream.parallel().forEach { x ->
+          val firstOctetOfIp = x.split(".").get(0)
+          firstOctets.add("$firstOctetOfIp.")
      }
+     stream.close()
      return firstOctets
 }
 

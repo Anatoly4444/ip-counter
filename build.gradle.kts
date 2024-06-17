@@ -15,11 +15,9 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-core
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
 //    implementation("com.clearspring.analytics:stream:2.9.8")
-    implementation("com.google.guava:guava:33.2.1-jre")
 
 }
 
